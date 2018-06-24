@@ -2,6 +2,8 @@
 
 set_time_limit( 0 );
 
+cli_set_process_title( "Saliens Cheat" );
+
 if( !file_exists( __DIR__ . '/cacert.pem' ) )
 {
 	Msg( 'You forgot to download cacert.pem file' );
@@ -200,7 +202,22 @@ do
 
 	Msg( '   {grey}Waiting ' . number_format( $LagAdjustedWaitTime, 3 ) . ' seconds for this round to end...' );
 
-	usleep( $LagAdjustedWaitTime * 1000000 );
+	$progress = new SimpleProgress();
+
+	for ($i = $LagAdjustedWaitTime; $i >= 0; $i--) {
+		$title = ('Zone ' . $Zone[ 'zone_position' ] .
+		' - Captured: ' . number_format( $Zone[ 'capture_progress' ] * 100, 2 ) . '%' .
+		' - Difficulty: ' . GetNameForDifficulty( $Zone ) .
+		' - Time left: ' . number_format( $i, 0 ));
+
+		cli_set_process_title ( (String)$title );
+		$progress->update(number_format( $LagAdjustedWaitTime - $i , 0), number_format( $LagAdjustedWaitTime , 0 ));
+
+		usleep( 1000000 );
+	}
+
+	cli_set_process_title ( "Saliens Cheat" );
+	echo PHP_EOL;
 
 	$Data = SendPOST( 'ITerritoryControlMinigameService/ReportScore', 'access_token=' . $Token . '&score=' . GetScoreForZone( $Zone ) . '&language=english' );
 
@@ -740,4 +757,133 @@ function Msg( $Message, $EOL = PHP_EOL, $printf = [] )
 	{
 		echo $Message;
 	}
+}
+
+class Timer {
+    public $time;
+    function __construct(){
+        $this->start();
+    }
+    function start($offset=0){
+        $this->time = microtime(true) + $offset;
+    }
+    function seconds(){
+        return microtime(true) - $this->time;
+    }
+};
+
+class FPSLimit {
+    public $frequency;
+    public $maxDt;
+    public $timer;
+    function __construct($freq){
+        $this->setFrequency($freq);
+        $this->timer = new Timer();
+        $this->timer->start();
+    }
+    function setFrequency($freq){
+        $this->frequency = $freq;
+        $this->maxDt = 1.0/$freq;
+    }
+    function frame(){
+        $dt = $this->timer->seconds();
+        if($dt > $this->maxDt){
+            $this->timer->start($dt - $this->maxDt);
+            return true;
+        }
+        return false;
+    }
+};
+
+class Progress {
+    // generic progress class to update different things
+    function update($units, $total){}
+}
+
+class SimpleProgress extends Progress {
+    private $cols;
+    private $limiter;
+    private $units;
+    private $total;
+
+    function __construct(){
+        // change the fps limit as needed
+        $this->limiter = new FPSLimit(10);
+        echo "\n";
+    }
+
+    function __destruct(){
+        $this->draw();
+    }
+
+    function updateSize(){
+        // get the number of columns
+        $this->cols = exec("tput cols");
+    }
+
+    function draw(){
+        $this->updateSize();
+        show_status($this->units, $this->total, $this->cols, $this->cols);
+    }
+
+    function update($units, $total){
+        $this->units = $units;
+        $this->total = $total;
+        if(!$this->limiter->frame())
+            return;
+        $this->draw();
+    }
+}
+
+function show_status($done, $total, $size=30, $lineWidth=-1) {
+    if($lineWidth <= 0){
+        $lineWidth = $_ENV['COLUMNS'];
+    }
+
+    static $start_time;
+
+    // to take account for timestamp, braces, and progress
+    $size -= 17;
+    // if we go over our bound, just ignore it
+    if($done > $total) return;
+
+    if(empty($start_time)) $start_time=time();
+    $now = time();
+
+    $perc=(double)($done/$total);
+
+    $bar=floor($perc*$size);
+
+    // jump to the begining
+    echo "\r";
+    // jump a line up
+    echo "\x1b[A";
+
+    $status_bar="[";
+    $status_bar.=str_repeat("=", $bar);
+    if($bar<$size){
+        $status_bar.=">";
+        $status_bar.=str_repeat(" ", $size-$bar);
+    } else {
+        $status_bar.="=";
+    }
+
+    $disp=number_format($perc*100, 0);
+
+    $status_bar.="]";
+    $details = '[' . date( 'H:i:s' ) . ']    ';
+
+    $rate = ($now-$start_time)/$done;
+    $left = $total - $done;
+
+    $elapsed = $now - $start_time;
+
+    echo "$details$status_bar";
+
+    flush();
+
+    // when done, send a newline
+    if($done == $total) {
+        echo "\n";
+    }
 }
