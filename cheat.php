@@ -157,7 +157,27 @@ do
 
 	Msg( '   {grey}Waiting ' . number_format( $WaitTimeBeforeFirstScan, 3 ) . ' seconds before rescanning planets...' );
 
-	usleep( $WaitTimeBeforeFirstScan * 1000000 );
+	if( $WaitTimeBeforeFirstScan > 0 )
+	{
+		Msg( '   {grey}Waiting ' . number_format( $WaitTimeBeforeFirstScan, 3 ) . ' remaining seconds before submitting score...' );
+
+		$progress = new SimpleProgress();
+
+		for ($i = $WaitTimeBeforeFirstScan; $i >= 0; $i--) {
+			$title = ('Zone ' . $Zone[ 'zone_position' ] .
+			' - Captured: ' . number_format( $Zone[ 'capture_progress' ] * 100, 2 ) . '%' .
+			' - Difficulty: ' . GetNameForDifficulty( $Zone ) .
+			' - Time left: ' . number_format( $i, 0 ));
+
+			cli_set_process_title ( (String)$title );
+			$progress->update(number_format( $WaitTimeBeforeFirstScan - $i , 0), number_format( $WaitTimeBeforeFirstScan , 0 ));
+
+			usleep( 1000000 );
+		}
+
+		cli_set_process_title ( "Saliens Cheat" );
+		echo PHP_EOL;
+	}
 
 	do
 	{
@@ -188,6 +208,7 @@ do
 		cli_set_process_title ( "Saliens Cheat" );
 		echo PHP_EOL;
 	}
+
 	$WaitedTimeAfterJoinZone = microtime( true ) - $WaitedTimeAfterJoinZone;
 	Msg( '   {grey}Waited ' . number_format( $WaitedTimeAfterJoinZone, 3 ) . ' (+' . number_format( $SkippedLagTime, 4 ) . ' lag) total seconds before sending score' );
 
