@@ -8,6 +8,8 @@ import os
 import re
 import sys
 import json
+import ctypes
+import platform
 from io import open
 from time import sleep, time
 from itertools import count
@@ -16,6 +18,25 @@ from datetime import datetime
 import requests
 from tqdm import tqdm
 
+# color support
+colors = (
+    ('^NOR', '\033[0m'),
+    ('^GRN', '\033[0;32m'),
+    ('^YEL', '\033[0;33m'),
+    ('^RED', '\033[0;31m'),
+    ('^GRY', '\033[0;36m'),
+    )
+
+if sys.platform == "win32":
+    if platform.win32_ver()[0] == '10':
+        # enable color support on windows 10
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    else:
+        # disable other windows versions
+        colors = [(k, '') for k, v in colors]
+
+# determine input func
 try:
     _input = raw_input
 except:
@@ -69,13 +90,7 @@ class Saliens(requests.Session):
     planet = None
     zone_id = None
     zone_capture_rate = 0
-    colors = (
-        ('^NOR', '\033[0m'),
-        ('^GRN', '\033[0;32m'),
-        ('^YEL', '\033[0;33m'),
-        ('^RED', '\033[0;31m'),
-        ('^GRY', '\033[0;36m'),
-        )
+    colors = colors
 
     def __init__(self, access_token):
         super(Saliens, self).__init__()
@@ -520,13 +535,13 @@ try:
                 sleep(1)
                 game.refresh_player_info()
 
-                if game.player_info['active_planet'] == planet_id:
+                if game.player_info.get('active_planet') == planet_id:
                     break
 
                 game.log("^RED-- Failed to join planet. Retrying...")
                 game.leave_planet()
 
-            if i >= 2 and game.player_info['active_planet'] != planet_id:
+            if i >= 2 and game.player_info.get('active_planet') != planet_id:
                 continue
 
         else:
@@ -571,7 +586,7 @@ try:
             # choose highest priority zone
             zone_id = zones[0]['zone_position']
             difficulty = zones[0]['difficulty']
-            game.zone_capture_rate = 0
+            game.zone_capture_rate *= 0.5
 
             deadline = time() + 60 * 10  # rescan planets every 10min
 
