@@ -147,23 +147,23 @@ do
 	{
 		Msg( '   {grey}Waiting ' . number_format( $LagAdjustedWaitTime, 3 ) . ' remaining seconds before submitting score...' );
 
-	$progress = new SimpleProgress();
+		$progress = new SimpleProgress();
 
-	for ($i = $LagAdjustedWaitTime; $i >= 0; $i--) {
-		$title = ('Zone ' . $Zone[ 'zone_position' ] .
-		' - Captured: ' . number_format( $Zone[ 'capture_progress' ] * 100, 2 ) . '%' .
-		' - Difficulty: ' . GetNameForDifficulty( $Zone ) .
-		' - Time left: ' . number_format( $i, 0 ));
+		for ($i = $LagAdjustedWaitTime; $i >= 0; $i--) {
+			$title = ('Zone ' . $Zone[ 'zone_position' ] .
+			' - Captured: ' . number_format( $Zone[ 'capture_progress' ] * 100, 2 ) . '%' .
+			' - Difficulty: ' . GetNameForDifficulty( $Zone ) .
+			' - Time left: ' . number_format( $i, 0 ));
 
-		cli_set_process_title ( (String)$title );
-		$progress->update(number_format( $LagAdjustedWaitTime - $i , 0), number_format( $LagAdjustedWaitTime , 0 ));
+			cli_set_process_title ( (String)$title );
+			$progress->update(number_format( $LagAdjustedWaitTime - $i , 0), number_format( $LagAdjustedWaitTime , 0 ));
 
-		usleep( 1000000 );
+			usleep( 1000000 );
+		}
+
+		cli_set_process_title ( "Saliens Cheat" );
+		echo PHP_EOL;
 	}
-
-	cli_set_process_title ( "Saliens Cheat" );
-	echo PHP_EOL;
-
 	$Data = SendPOST( 'ITerritoryControlMinigameService/ReportScore', 'access_token=' . $Token . '&score=' . GetScoreForZone( $Zone ) . '&language=english' );
 
 	if( $Data[ 'eresult' ] == 93 )
