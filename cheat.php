@@ -47,6 +47,10 @@ if( strlen( $Token ) !== 32 )
 	exit( 1 );
 }
 
+$LocalScriptHash = sha1_file( __FILE__ );
+$RepositoryScriptETag = '';
+$RepositoryScriptHash = GetRepositoryScriptHash( $RepositoryScriptETag, $LocalScriptHash );
+
 $WaitTime = 110;
 $KnownPlanets = [];
 $SkippedPlanets = [];
@@ -155,6 +159,17 @@ do
 	$WaitTimeBeforeFirstScan = 50 + ( 50 - $SkippedLagTime );
 	$PlanetCheckTime = microtime( true );
 
+
+	if( $LocalScriptHash === $RepositoryScriptHash )
+	{
+		$RepositoryScriptHash = GetRepositoryScriptHash( $RepositoryScriptETag, $LocalScriptHash );
+	}
+
+	if( $LocalScriptHash !== $RepositoryScriptHash )
+	{
+		Msg( '-- {lightred}Script has been updated on GitHub since you started this script, please make sure to update.' );
+	}
+
 	if( $WaitTimeBeforeFirstScan > 0 )
 	{
 		Msg( '   {grey}Waiting ' . number_format( $WaitTimeBeforeFirstScan, 3 ) . ' seconds before rescanning planets...' );
@@ -176,6 +191,7 @@ do
 		cli_set_process_title ( "Saliens Cheat" );
 		echo PHP_EOL;
 	}
+
 
 	do
 	{
@@ -208,7 +224,7 @@ do
 	}
 
 	$WaitedTimeAfterJoinZone = microtime( true ) - $WaitedTimeAfterJoinZone;
-	Msg( '   {grey}Waited ' . number_format( $WaitedTimeAfterJoinZone, 3 ) . ' (+' . number_format( $SkippedLagTime, 4 ) . ' lag) total seconds before sending score' );
+	Msg( '   {grey}Waited ' . number_format( $WaitedTimeAfterJoinZone, 3 ) . ' (+' . number_format( $SkippedLagTime, 0 ) . ' lag) total seconds before sending score' );
 
 	$Data = SendPOST( 'ITerritoryControlMinigameService/ReportScore', 'access_token=' . $Token . '&score=' . GetScoreForZone( $Zone ) . '&language=english' );
 
@@ -239,11 +255,14 @@ do
 		$Time = ( $Data[ 'next_level_score' ] - $Data[ 'new_score' ] ) / GetScoreForZone( [ 'difficulty' => $Zone[ 'difficulty' ] ] ) * ( $WaitTime / 60 );
 		$Hours = floor( $Time / 60 );
 		$Minutes = $Time % 60;
+		$Date = date_create();
+		
+		date_add( $Date, date_interval_create_from_date_string( $Hours . " hours + " . $Minutes . " minutes" ) );
 		
 		Msg(
 			'>> Next Level: {yellow}' . number_format( $Data[ 'next_level_score' ] ) .
 			'{normal} XP - Remaining: {yellow}' . number_format( $Data[ 'next_level_score' ] - $Data[ 'new_score' ] ) .
-			'{normal} XP - ETA: {green}' . $Hours . 'h ' . $Minutes . 'm'
+			'{normal} XP - ETA: {green}' . $Hours . 'h ' . $Minutes . 'm (' . date_format( $Date , "jS H:i T" ) . ')'
 		);
 	}
 }
@@ -380,12 +399,12 @@ function GetPlanetState( $Planet, &$ZonePaces, $WaitTime )
 
 				$ZoneMessages[] =
 				[
-					'     Zone {yellow}%3d{normal} - Captured: {yellow}%5s%%{normal} - Cutoff: {yellow}%5s%%{normal} - Pace: {yellow}+%s%%{normal} - ETA: {yellow}%2dm %2ds{normal}',
+					'     Zone {yellow}%3d{normal} - Captured: {yellow}%5s%%{normal} - Cutoff: {yellow}%5s%%{normal} - Pace: {yellow}%6s%%{normal} - ETA: {yellow}%2dm %2ds{normal}',
 					[
 						$Zone[ 'zone_position' ],
 						number_format( $Zone[ 'capture_progress' ] * 100, 2 ),
 						number_format( $Cutoff * 100, 2 ),
-						number_format( $PaceCutoff * 100, 2 ),
+						'+' . number_format( $PaceCutoff * 100, 2 ),
 						$Minutes,
 						$Seconds,
 					]
@@ -709,9 +728,9 @@ function ExecuteRequest( $Method, $URL, $Data = [] )
 		{
 			Msg( '{lightred}!! ' . $Method . ' failed - EResult: ' . $EResult . ' - ' . $Data );
 
-			if( preg_match( '/[Xx]-error_message: /', $Header, $ErrorMessage ) === 1 )
+			if( preg_match( '/^[Xx]-error_message: (?:.+)$/m', $Header, $ErrorMessage ) === 1 )
 			{
-				Msg( '{lightred}!! ' . $Header );
+				Msg( '{lightred}!! API failed - ' . $ErrorMessage[ 0 ] );
 			}
 
 			if( $EResult === 15 && $Method === 'ITerritoryControlMinigameService/RepresentClan' )
@@ -746,6 +765,44 @@ function ExecuteRequest( $Method, $URL, $Data = [] )
 	while( !isset( $Data[ 'response' ] ) && sleep( 1 ) === 0 );
 
 	return $Data;
+}
+
+function GetRepositoryScriptHash( &$RepositoryScriptETag, $LocalScriptHash )
+{
+	$c_r = curl_init( );
+
+	$Time = time();
+	$Time = $Time - ( $Time % 100 );
+
+	curl_setopt_array( $c_r, [
+		CURLOPT_URL            => 'https://raw.githubusercontent.com/SlyCedix/SalienCheat/master/cheat.php?_=' . $Time,
+		CURLOPT_USERAGENT      => 'SalienCheat (https://github.com/SlyCedix/SalienCheat/)',
+		CURLOPT_RETURNTRANSFER => true,
+		CURLOPT_ENCODING       => 'gzip',
+		CURLOPT_TIMEOUT        => 5,
+		CURLOPT_CONNECTTIMEOUT => 5,
+		CURLOPT_CAINFO         => __DIR__ . '/cacert.pem',
+		CURLOPT_HEADER         => 1,
+		CURLOPT_HTTPHEADER     =>
+		[
+			'If-None-Match: "' . $RepositoryScriptETag . '"'
+		]
+	] );
+
+	$Data = curl_exec( $c_r );
+
+	$HeaderSize = curl_getinfo( $c_r, CURLINFO_HEADER_SIZE );
+	$Header = substr( $Data, 0, $HeaderSize );
+	$Data = substr( $Data, $HeaderSize );
+
+	curl_close( $c_r );
+
+	if( preg_match( '/ETag: "([a-z0-9]+)"/', $Header, $ETag ) === 1 )
+	{
+		$RepositoryScriptETag = $ETag[ 1 ];
+	}
+
+	return strlen( $Data ) > 0 ? sha1( $Data ) : $LocalScriptHash;
 }
 
 function Msg( $Message, $EOL = PHP_EOL, $printf = [] )
