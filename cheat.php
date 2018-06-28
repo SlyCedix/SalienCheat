@@ -202,7 +202,7 @@ do
 			' - Time left: ' . number_format( $i, 0 ));
 
 			cli_set_process_title ( (String)$title );
-			$progress->update(number_format( $WaitTimeBeforeFirstScan - $i , 0), number_format( $WaitTimeBeforeFirstScan , 0 ));
+			$progress->update(number_format( $WaitTimeBeforeFirstScan + $SkippedLagTime - $i , 0), number_format( $WaitTimeBeforeFirstScan + $SkippedLagTime , 0 ));
 
 			usleep( 1000000 );
 		}
@@ -999,10 +999,15 @@ function show_status($done, $total, $size=30, $lineWidth=-1) {
     $disp=number_format($perc*100, 0);
 
     $status_bar.="]";
-    $details = '[' . date( 'H:i:s' ) . ']    ';
+	$details = '[' . date( 'H:i:s' ) . ']    ';
+	
+	if ( $done == 0 ) {
+		return;
+	}
 
-    $rate = ($now-$start_time)/$done;
-    $left = $total - $done;
+	$rate = ($now-$start_time)/$done; 
+	
+	$left = $total - $done;
 
     $elapsed = $now - $start_time;
 
