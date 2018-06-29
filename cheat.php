@@ -70,6 +70,7 @@ if( isset( $_SERVER[ 'DISABLE_COLORS' ] ) )
 
 $GameVersion = 1;
 $WaitTime = 110;
+$FailSleep = 3;
 $ZonePaces = [];
 $OldScore = 0;
 $LastKnownPlanet = 0;
@@ -106,7 +107,7 @@ do
 		}
 	}
 }
-while( !isset( $Data[ 'response' ][ 'score' ] ) && sleep( 1 ) === 0 );
+while( !isset( $Data[ 'response' ][ 'score' ] ) && sleep( $FailSleep ) === 0 );
 
 do
 {
@@ -114,9 +115,9 @@ do
 	{
 		do
 		{
-			$BestPlanetAndZone = GetBestPlanetAndZone( $ZonePaces, $WaitTime );
+			$BestPlanetAndZone = GetBestPlanetAndZone( $ZonePaces, $WaitTime, $FailSleep );
 		}
-		while( !$BestPlanetAndZone && sleep( 1 ) === 0 );
+		while( !$BestPlanetAndZone && sleep( $FailSleep ) === 0 );
 	}
 
 	echo PHP_EOL;
@@ -127,16 +128,16 @@ do
 		do
 		{
 			// Leave current game before trying to switch planets (it will report InvalidState otherwise)
-			$SteamThinksPlanet = LeaveCurrentGame( $Token, $BestPlanetAndZone[ 'id' ] );
+			$SteamThinksPlanet = LeaveCurrentGame( $Token, $FailSleep, $BestPlanetAndZone[ 'id' ] );
 
 			if( $BestPlanetAndZone[ 'id' ] !== $SteamThinksPlanet )
 			{
 				SendPOST( 'ITerritoryControlMinigameService/JoinPlanet', 'id=' . $BestPlanetAndZone[ 'id' ] . '&access_token=' . $Token );
 
-				$SteamThinksPlanet = LeaveCurrentGame( $Token );
+				$SteamThinksPlanet = LeaveCurrentGame( $Token, $FailSleep );
 			}
 		}
-		while( $BestPlanetAndZone[ 'id' ] !== $SteamThinksPlanet && sleep( 1 ) === 0 );
+		while( $BestPlanetAndZone[ 'id' ] !== $SteamThinksPlanet && sleep( $FailSleep ) === 0 );
 
 		$LastKnownPlanet = $BestPlanetAndZone[ 'id' ];
 	}
@@ -148,7 +149,11 @@ do
 	if( empty( $Zone[ 'response' ][ 'zone_info' ] ) )
 	{
 		Msg( '{lightred}!! Failed to join a zone, rescanning and restarting...' );
+
 		$BestPlanetAndZone = 0;
+
+		sleep( $FailSleep );
+
 		continue;
 	}
 
@@ -204,9 +209,9 @@ do
 
 	do
 	{
-		$BestPlanetAndZone = GetBestPlanetAndZone( $ZonePaces, $WaitTime );
+		$BestPlanetAndZone = GetBestPlanetAndZone( $ZonePaces, $WaitTime, $FailSleep );
 	}
-	while( !$BestPlanetAndZone && sleep( 1 ) === 0 );
+	while( !$BestPlanetAndZone && sleep( $FailSleep ) === 0 );
 
 	$LagAdjustedWaitTime -= microtime( true ) - $PlanetCheckTime;
 
@@ -526,7 +531,7 @@ function GetPlanetState( $Planet, &$ZonePaces, $WaitTime )
 	];
 }
 
-function GetBestPlanetAndZone( &$ZonePaces, $WaitTime )
+function GetBestPlanetAndZone( &$ZonePaces, $WaitTime, $FailSleep )
 {
 	$Planets = SendGET( 'ITerritoryControlMinigameService/GetPlanets', 'active_only=1&language=english' );
 
@@ -565,7 +570,7 @@ function GetBestPlanetAndZone( &$ZonePaces, $WaitTime )
 		{
 			$Zone = GetPlanetState( $Planet[ 'id' ], $ZonePaces, $WaitTime );
 		}
-		while( $Zone === null && sleep( 1 ) === 0 );
+		while( $Zone === null && sleep( $FailSleep ) === 0 );
 
 		if( $Zone === false )
 		{
@@ -647,7 +652,7 @@ function GetBestPlanetAndZone( &$ZonePaces, $WaitTime )
 	return $Planet;
 }
 
-function LeaveCurrentGame( $Token, $LeaveCurrentPlanet = 0 )
+function LeaveCurrentGame( $Token, $FailSleep, $LeaveCurrentPlanet = 0 )
 {
 	do
 	{
@@ -658,7 +663,7 @@ function LeaveCurrentGame( $Token, $LeaveCurrentPlanet = 0 )
 			SendPOST( 'IMiniGameService/LeaveGame', 'access_token=' . $Token . '&gameid=' . $Data[ 'response' ][ 'active_zone_game' ] );
 		}
 	}
-	while( !isset( $Data[ 'response' ][ 'score' ] ) && sleep( 1 ) === 0 );
+	while( !isset( $Data[ 'response' ][ 'score' ] ) && sleep( $FailSleep ) === 0 );
 
 	if( !isset( $Data[ 'response' ][ 'active_planet' ] ) )
 	{
@@ -789,14 +794,14 @@ function ExecuteRequest( $Method, $URL, $Data = [] )
 
 				Msg( '{lightred}-- EResult 10 means Steam is busy' );
 
-				sleep( 3 );
+				sleep( 5 );
 			}
 		}
 
 		$Data = json_decode( $Data, true );
 		$Data[ 'eresult' ] = $EResult;
 	}
-	while( !isset( $Data[ 'response' ] ) && sleep( 1 ) === 0 );
+	while( !isset( $Data[ 'response' ] ) && sleep( 2 ) === 0 );
 
 	return $Data;
 }
