@@ -987,7 +987,7 @@ function show_status($done, $total, $size=30, $lineWidth=-1) {
     // jump a line up
     echo "\x1b[A";
 	
-	if(bar < 0) return;
+	if($bar < 0) return;
 
     $status_bar="[";
     $status_bar.=str_repeat("=", $bar);
