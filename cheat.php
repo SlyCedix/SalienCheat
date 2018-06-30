@@ -44,6 +44,9 @@ if( strlen( $Token ) !== 32 )
 	exit( 1 );
 }
 
+// Pass env ACCOUNTID, get it from salien page source code called 'gAccountID'
+$AccountID = isset( $_SERVER[ 'ACCOUNTID' ] ) ? (int)$_SERVER[ 'ACCOUNTID' ] : 0;
+
 if( isset( $_SERVER[ 'IGNORE_UPDATES' ] ) && (bool)$_SERVER[ 'IGNORE_UPDATES' ] )
 {
 	$UpdateCheck = false;
@@ -158,9 +161,18 @@ do
 		}
 
 		$BossFailsAllowed = 10;
+		$NextHeal = microtime( true ) + 120;
 		do
 		{
-			$Data = SendPOST( 'ITerritoryControlMinigameService/ReportBossDamage', 'access_token=' . $Token . '&use_heal_ability=0&damage_to_boss=100&damage_taken=0' );
+			$UseHeal = 0;
+
+			if( microtime( true ) >= $NextHeal )
+			{
+				$UseHeal = 1;
+				$NextHeal = microtime( true ) + 120;
+			}
+
+			$Data = SendPOST( 'ITerritoryControlMinigameService/ReportBossDamage', 'access_token=' . $Token . '&use_heal_ability=' . $UseHeal . '&damage_to_boss=' . rand( 40, 100 ) . '&damage_taken=' . rand( 20, 80 ) );
 
 			if( $Data[ 'eresult' ] != 1 && $BossFailsAllowed-- < 1 )
 			{
@@ -176,6 +188,16 @@ do
 			{
 				Msg( '{green}@@ Waiting...' );
 				continue;
+			}
+
+			foreach( $Data[ 'response' ][ 'boss_status' ][ 'boss_players' ] as $Player )
+			{
+				if( $AccountID > 0 && $Player[ 'accountid' ] != $AccountID )
+				{
+					continue;
+				}
+
+				Msg( '{green}@@ Player ' . $Player[ 'accountid' ] . ' - HP: ' . $Player[ 'hp' ] . ' / ' . $Player[ 'max_hp' ] . ' - XP Earned: ' . $Player[ 'xp_earned' ] );
 			}
 
 			if( $Data[ 'response' ][ 'game_over' ] )
