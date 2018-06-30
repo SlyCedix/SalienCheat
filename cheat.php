@@ -93,6 +93,8 @@ do
 
 	if( isset( $Data[ 'response' ][ 'score' ] ) )
 	{
+		$OldScore = $Data[ 'response' ][ 'score' ];
+
 		if( !isset( $Data[ 'response' ][ 'clan_info' ][ 'accountid' ] ) )
 		{
 			Msg( '{green}-- You are currently not representing any clan, so you are now part of SteamDB' );
@@ -161,7 +163,7 @@ do
 		}
 
 		$BossFailsAllowed = 10;
-		$NextHeal = microtime( true ) + mt_rand( 120, 300 );
+		$NextHeal = microtime( true ) + mt_rand( 120, 180 );
 
 		do
 		{
@@ -172,7 +174,7 @@ do
 			if( microtime( true ) >= $NextHeal )
 			{
 				$UseHeal = 1;
-				$NextHeal = microtime( true ) + mt_rand( 120, 300 );
+				$NextHeal = microtime( true ) + 120;
 
 				Msg( '{teal}@@ Using heal ability' );
 			}
@@ -235,8 +237,6 @@ do
 
 				$BestPlanetAndZone = 0;
 				$LastKnownPlanet = 0;
-
-				print_r( $Data );
 
 				break;
 			}
