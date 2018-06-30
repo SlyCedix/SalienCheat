@@ -776,7 +776,7 @@ function GetCurl( )
 	$c = curl_init( );
 
 	curl_setopt_array( $c, [
-		CURLOPT_USERAGENT      => 'SalienCheat (https://github.com/SteamDatabase/SalienCheat/)',
+		CURLOPT_USERAGENT      => 'SalienCheat (https://github.com/SlyCedix/SalienCheat/)',
 		CURLOPT_RETURNTRANSFER => true,
 		CURLOPT_ENCODING       => '', // Let curl decide best encoding on its own
 		CURLOPT_TIMEOUT        => 30,
