@@ -161,18 +161,18 @@ do
 		}
 
 		$BossFailsAllowed = 10;
-		$NextHeal = microtime( true ) + 120;
+		$NextHeal = microtime( true ) + mt_rand( 120, 300 );
 
 		do
 		{
 			$UseHeal = 0;
-			$DamageToBoss = rand( 40, 90 );
-			$DamageTaken = rand( 0, 20 );
+			$DamageToBoss = 1;
+			$DamageTaken = 0;
 
 			if( microtime( true ) >= $NextHeal )
 			{
 				$UseHeal = 1;
-				$NextHeal = microtime( true ) + 120;
+				$NextHeal = microtime( true ) + mt_rand( 120, 300 );
 
 				Msg( '{teal}@@ Using heal ability' );
 			}
@@ -195,9 +195,38 @@ do
 				continue;
 			}
 
+			usort( $Data[ 'response' ][ 'boss_status' ][ 'boss_players' ], function( $a, $b ) use ( $AccountID )
+			{
+				if( $a[ 'accountid' ] == $AccountID )
+				{
+					return 1;
+				}
+				else if( $b[ 'accountid' ] == $AccountID )
+				{
+					return -1;
+				}
+
+				if( $b[ 'xp_earned' ] == $a[ 'xp_earned' ] )
+				{
+					return $b[ 'hp' ] - $a[ 'hp' ];
+				}
+
+				return $b[ 'xp_earned' ] - $a[ 'xp_earned' ];
+			} );
+
 			foreach( $Data[ 'response' ][ 'boss_status' ][ 'boss_players' ] as $Player )
 			{
-				Msg( ( $Player[ 'accountid' ] == $AccountID ? '{green}' : '' ) . '@@ Player ' . $Player[ 'accountid' ] . ' - HP: ' . $Player[ 'hp' ] . ' / ' . $Player[ 'max_hp' ] . ' - Score: ' . number_format( $Player[ 'xp_earned' ] ) );
+				Msg(
+					( $Player[ 'accountid' ] == $AccountID ? '{green}@@' : '  ' ) .
+					' Player %9d - HP: %6s / %6s - Score: %10s',
+					PHP_EOL,
+					[
+						$Player[ 'accountid' ],
+						$Player[ 'hp' ],
+						$Player[ 'max_hp' ],
+						number_format( $Player[ 'xp_earned' ] )
+					]
+				);
 			}
 
 			if( $Data[ 'response' ][ 'game_over' ] )
@@ -219,7 +248,8 @@ do
 			}
 			else
 			{
-				Msg( '{green}@@ Boss HP: ' . number_format( $Data[ 'response' ][ 'boss_status' ][ 'boss_hp' ] ) . ' / ' .  number_format( $Data[ 'response' ][ 'boss_status' ][ 'boss_max_hp' ] ) );
+				Msg( '@@ Boss HP: {green}' . number_format( $Data[ 'response' ][ 'boss_status' ][ 'boss_hp' ] ) . '{normal} / {lightred}' .  number_format( $Data[ 'response' ][ 'boss_status' ][ 'boss_max_hp' ] ) . '{normal} - Lasers: {yellow}' . $Data[ 'response' ][ 'num_laser_uses' ] . '{normal} - Team Heals: {green}' . $Data[ 'response' ][ 'num_team_heals' ] );
+				echo PHP_EOL;
 			}
 		}
 		while( sleep( 5 ) === 0 );
